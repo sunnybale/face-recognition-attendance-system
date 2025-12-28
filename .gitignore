@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+
+# IDE
+.idea/
+
+# Generated / sensitive files
+attendance.db
+face_encodings.pkl
+models/
+faces/
+.DS_Store

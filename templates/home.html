@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Face Attendance – UEL</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <h1 class="brand">University of <span>East London</span></h1>
+  </div>
+
+  <div class="topbar-right" style="display:flex; gap:10px; align-items:center;">
+    <span class="btn btn-secondary" style="cursor:default;">
+      {{ today_pretty }}
+    </span>
+
+    <span class="btn" style="cursor:default;">
+      Students: {{ total_students }}
+    </span>
+
+    <a class="btn btn-secondary"
+       href="{{ url_for('download_excel', date=selected_date) }}">
+      Excel
+    </a>
+
+    <a class="btn btn-secondary"
+       href="{{ url_for('download_pdf', date=selected_date) }}">
+      PDF
+    </a>
+
+    <a class="btn btn-secondary" href="#percent-section" title="Attendance %">
+      📊 %
+    </a>
+
+    <a class="btn btn-secondary" href="#trend-section" title="Trend">
+      📈 Trend
+    </a>
+  </div>
+</header>
+
+<section class="hero">
+  <p>Automated Face Recognition Attendance System</p>
+</section>
+
+<div class="container">
+
+  <!-- FLASH MESSAGES -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div style="margin: 10px 0;">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- CAMERA + MODEL STATUS -->
+  <div class="card">
+    <h3>
+      Live Camera
+      {% if model_ready %}
+        <span style="color:green;">(Model Ready)</span>
+      {% else %}
+        <span style="color:red;">(Model Not Ready)</span>
+      {% endif %}
+    </h3>
+
+    {% if model_ready %}
+      <div class="camera-box">
+        <img src="{{ url_for('video_feed') }}" width="100%">
+      </div>
+      <p style="margin-top:10px;">
+        ✅ Attendance is marked automatically when a registered face is detected (once per day).
+      </p>
+    {% else %}
+      <p style="color:red;">
+        ⚠ Model not ready. Register students + capture face encodings.
+      </p>
+    {% endif %}
+  </div>
+
+  <!-- ATTENDANCE TABLE -->
+  <div class="card">
+    <h3>Attendance ({{ attendance_count }})</h3>
+
+    <form method="get" action="{{ url_for('home') }}"
+          style="display:flex; gap:10px; align-items:center; max-width:520px;">
+      <input type="date" name="date" value="{{ selected_date }}">
+      <button type="submit" class="btn">View</button>
+      <a class="btn btn-secondary" href="{{ url_for('home') }}">Today</a>
+    </form>
+
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Roll</th>
+        <th>Course</th>
+        <th>Section</th>
+        <th>Time</th>
+        <th>Mode</th>
+        <th>Delete</th>
+      </tr>
+
+      {% for row in attendance %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ row.name }}</td>
+        <td>{{ row.roll }}</td>
+        <td>{{ row.course }}</td>
+        <td>{{ row.section }}</td>
+        <td>{{ row.time }}</td>
+        <td>{{ row.mode }}</td>
+        <td>
+          <form method="post" action="{{ url_for('delete_attendance', att_id=row.id) }}">
+            <input type="hidden" name="date" value="{{ selected_date }}">
+            <button class="btn-danger" type="submit">X</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <!-- REGISTER STUDENT -->
+  <div class="card">
+    <h3>Register Student</h3>
+
+    <form method="post" action="{{ url_for('register') }}" style="max-width:640px;">
+      <label>Name</label>
+      <input name="name" required>
+
+      <label>Roll</label>
+      <input name="roll" required>
+
+      <label>Course</label>
+      <input name="course" placeholder="MSc Computer Science">
+
+      <label>Section</label>
+      <input name="section" placeholder="A">
+
+      <button type="submit" class="btn">Register</button>
+    </form>
+  </div>
+
+  <!-- STUDENTS LIST -->
+  <div class="card">
+    <h3>Students</h3>
+
+    <table>
+      <tr>
+        <th>Roll</th>
+        <th>Name</th>
+        <th>Course</th>
+        <th>Section</th>
+        <th>Actions</th>
+      </tr>
+
+      {% for s in students %}
+      <tr>
+        <td>{{ s.roll }}</td>
+        <td>
+          <form method="post" action="{{ url_for('update_student', roll=s.roll) }}" style="display:flex; gap:10px;">
+            <input name="name" value="{{ s.name }}" style="min-width:180px;">
+        </td>
+        <td>
+            <input name="course" value="{{ s.course }}" style="min-width:180px;">
+        </td>
+        <td>
+            <input name="section" value="{{ s.section }}" style="min-width:90px;">
+        </td>
+        <td style="display:flex; gap:10px;">
+            <button class="btn" type="submit">Update</button>
+          </form>
+
+          <form method="post" action="{{ url_for('capture_face', roll=s.roll) }}">
+            <button class="btn btn-warning" type="submit">📸 Capture Face</button>
+          </form>
+
+          <form method="post" action="{{ url_for('delete_student', roll=s.roll) }}">
+            <button class="btn-danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <!-- MANUAL ATTENDANCE -->
+  <div class="card">
+    <h3>Manual Attendance</h3>
+    <p style="margin-bottom:10px;">Use if face not recognized.</p>
+
+    <form method="post" action="{{ url_for('mark_manual') }}" style="max-width:520px; display:flex; gap:10px;">
+      <input type="hidden" name="date_manual" value="{{ selected_date }}">
+      <select name="roll_manual" required>
+        <option value="">-- Choose student --</option>
+        {% for s in students %}
+          <option value="{{ s.roll }}">{{ s.name }} ({{ s.roll }})</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn">Mark</button>
+    </form>
+  </div>
+
+  <!-- PERCENT SECTION -->
+  <div class="card" id="percent-section">
+    <h3>Attendance % ({{ selected_date }})</h3>
+    <p>
+      Present: <b>{{ present }}</b> &nbsp;|&nbsp;
+      Absent: <b>{{ absent }}</b> &nbsp;|&nbsp;
+      Percentage: <b>{{ percent }}%</b>
+    </p>
+    <img src="{{ url_for('attendance_pie', date=selected_date) }}" style="max-width:520px; width:100%;">
+  </div>
+
+  <!-- PER STUDENT % -->
+  <div class="card">
+    <h3>Per-Student Attendance % (Overall)</h3>
+    <img src="{{ url_for('student_percent') }}" style="width:100%; max-width:820px;">
+    <div style="margin-top:12px; overflow-x:auto;">
+      <table>
+        <tr>
+          <th>Roll</th><th>Name</th><th>Present Days</th><th>Total Days</th><th>%</th>
+        </tr>
+        {% for p in per_student %}
+        <tr>
+          <td>{{ p.roll }}</td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.present_days }}</td>
+          <td>{{ p.total_days }}</td>
+          <td><b>{{ p.pct }}%</b></td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <!-- TREND SECTION -->
+  <div class="card" id="trend-section">
+    <h3>Attendance Trend (Date-wise)</h3>
+    <img src="{{ url_for('attendance_trend') }}" style="width:100%; max-width:820px;">
+  </div>
+
+</div>
+
+<footer>
+  © {{ today_pretty }} University of East London — MSc Computer Science Project
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,1 @@
+FaceAttendanceProject structure created. Add your app.py and templates.
